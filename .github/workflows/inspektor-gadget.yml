@@ -124,6 +124,8 @@ jobs:
     name: Build kubectl-gadget
     # level: 0
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -149,6 +151,16 @@ jobs:
         registry: ${{ env.REGISTRY }}
         container-image: ${{ env.CONTAINER_REPO }}
         co-re: false
+    - uses: github/codeql-action/init@v2
+      with:
+        languages: go
+        # CodeQL did not handle well one of our fixes for a CWE.
+        # The problem was fixed upstream:
+        # https://github.com/github/codeql/pull/12247
+        # And CodeQL maintainer advised us to use the following to profit from
+        # this fix:
+        # https://github.com/github/codeql/issues/12241#issuecomment-1438238330
+        tools: latest
     - name: Build kubectl-gadget-${{ matrix.os }}-${{ matrix.arch }}
       run: |
         git checkout
@@ -176,6 +188,8 @@ jobs:
           -czf ${kubectl_gadget}.tar.gz -C $platform \
           kubectl-gadget LICENSE
         rm -rf $platform
+    - name: CVE checks for kubectl-gadget-${{ matrix.os }}-${{ matrix.arch }}
+      uses: github/codeql-action/analyze@v2
     - name: Add kubectl-gadget-${{ matrix.os }}-${{ matrix.arch }}.tar.gz as artifact.
       uses: actions/upload-artifact@master
       with:
