@@ -12,6 +12,8 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type execsnoopBufT struct{ Buf [32768]uint8 }
+
 type execsnoopEvent struct {
 	MntnsId   uint64
 	Timestamp uint64
@@ -24,6 +26,7 @@ type execsnoopEvent struct {
 	Retval    int32
 	ArgsCount int32
 	ArgsSize  uint32
+	Cwd       [4096]uint8
 	Comm      [16]uint8
 	Args      [7680]uint8
 	_         [4]byte
@@ -78,6 +81,7 @@ type execsnoopProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type execsnoopMapSpecs struct {
+	Bufs                 *ebpf.MapSpec `ebpf:"bufs"`
 	Events               *ebpf.MapSpec `ebpf:"events"`
 	Execs                *ebpf.MapSpec `ebpf:"execs"`
 	GadgetMntnsFilterMap *ebpf.MapSpec `ebpf:"gadget_mntns_filter_map"`
@@ -102,6 +106,7 @@ func (o *execsnoopObjects) Close() error {
 //
 // It can be passed to loadExecsnoopObjects or ebpf.CollectionSpec.LoadAndAssign.
 type execsnoopMaps struct {
+	Bufs                 *ebpf.Map `ebpf:"bufs"`
 	Events               *ebpf.Map `ebpf:"events"`
 	Execs                *ebpf.Map `ebpf:"execs"`
 	GadgetMntnsFilterMap *ebpf.Map `ebpf:"gadget_mntns_filter_map"`
@@ -109,6 +114,7 @@ type execsnoopMaps struct {
 
 func (m *execsnoopMaps) Close() error {
 	return _ExecsnoopClose(
+		m.Bufs,
 		m.Events,
 		m.Execs,
 		m.GadgetMntnsFilterMap,

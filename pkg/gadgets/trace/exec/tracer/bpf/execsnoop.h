@@ -24,6 +24,7 @@ struct event {
 	int retval;
 	int args_count;
 	unsigned int args_size;
+	__u8 cwd[MAX_STRING_SIZE];
 	__u8 comm[TASK_COMM_LEN];
 	__u8 args[FULL_MAX_ARGS_ARR];
 };

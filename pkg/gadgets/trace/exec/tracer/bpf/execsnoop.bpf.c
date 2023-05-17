@@ -5,12 +5,15 @@
 #ifdef __TARGET_ARCH_arm64
 #include <bpf/bpf_tracing.h>
 #endif /* __TARGET_ARCH_arm64 */
-#include "execsnoop.h"
+
 #include "mntns_filter.h"
+#include "filesystem.h"
+#include "execsnoop.h"
 
 const volatile bool ignore_failed = true;
 const volatile uid_t targ_uid = INVALID_UID;
 const volatile int max_args = DEFAULT_MAXARGS;
+const volatile bool get_cwd = false;
 
 static const struct event empty_event = {};
 
@@ -35,8 +38,10 @@ SEC("tracepoint/syscalls/sys_enter_execve")
 int ig_execve_e(struct trace_event_raw_sys_enter* ctx)
 {
 	u64 id;
+	char *cwd;
 	pid_t pid, tgid;
 	struct event *event;
+	struct fs_struct *fs;
 	struct task_struct *task;
 	unsigned int ret;
 	const char **args = (const char **)(ctx->args[1]);
@@ -83,6 +88,12 @@ int ig_execve_e(struct trace_event_raw_sys_enter* ctx)
 	event->args_count = 0;
 	event->args_size = 0;
 	event->mntns_id = mntns_id;
+
+	if (get_cwd) {
+		fs = BPF_CORE_READ(task, fs);
+		cwd = get_path_str(__builtin_preserve_access_index(&fs->pwd));
+		bpf_probe_read(event->cwd, MAX_STRING_SIZE, cwd);
+	}
 
 	ret = bpf_probe_read_user_str(event->args, ARGSIZE, (const char*)ctx->args[0]);
 	if (ret <= ARGSIZE) {

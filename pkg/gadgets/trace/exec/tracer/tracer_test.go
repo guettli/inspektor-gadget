@@ -19,12 +19,14 @@ package tracer_test
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"sort"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 
 	utilstest "github.com/inspektor-gadget/inspektor-gadget/internal/test"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadgets/trace/exec/tracer"
@@ -67,6 +69,11 @@ func TestExecTracer(t *testing.T) {
 	// 19 is DEFAULT_MAXARGS - 1 (-1 because args[0] is on the first position).
 	for i := 0; i < 19; i++ {
 		manyArgs = append(manyArgs, "/dev/null")
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	type testDefinition struct {
@@ -181,6 +188,30 @@ func TestExecTracer(t *testing.T) {
 				if diff := cmp.Diff(events[0].Args, append([]string{"/bin/cat"}, manyArgs...)); diff != "" {
 					t.Fatalf("Event has bad args, diff: \n%s", diff)
 				}
+			},
+		},
+		"event_has_correct_cwd": {
+			getTracerConfig: func(info *utilstest.RunnerInfo) *tracer.Config {
+				return &tracer.Config{
+					MountnsMap: utilstest.CreateMntNsFilterMap(t, info.MountNsID),
+					GetCwd:     true,
+				}
+			},
+			generateEvent: func() (int, error) {
+				args := append(manyArgs, "/dev/null")
+				cmd := exec.Command("/bin/cat", args...)
+				if err := cmd.Run(); err != nil {
+					return 0, fmt.Errorf("running command: %w", err)
+				}
+
+				return cmd.Process.Pid, nil
+			},
+			validateEvent: func(t *testing.T, info *utilstest.RunnerInfo, _ int, events []types.Event) {
+				if len(events) != 1 {
+					t.Fatalf("One event expected")
+				}
+
+				require.Equal(t, events[0].Cwd, cwd, "Event has bad cwd")
 			},
 		},
 	} {

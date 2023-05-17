@@ -36,6 +36,7 @@ import (
 
 type Config struct {
 	MountnsMap *ebpf.Map
+	GetCwd     bool
 }
 
 type Tracer struct {
@@ -91,7 +92,12 @@ func (t *Tracer) install() error {
 		return fmt.Errorf("loading ebpf program: %w", err)
 	}
 
-	if err := gadgets.LoadeBPFSpec(t.config.MountnsMap, spec, nil, &t.objs); err != nil {
+	consts := make(map[string]interface{})
+	if t.config.GetCwd {
+		consts["get_cwd"] = true
+	}
+
+	if err := gadgets.LoadeBPFSpec(t.config.MountnsMap, spec, consts, &t.objs); err != nil {
 		return fmt.Errorf("loading ebpf spec: %w", err)
 	}
 
@@ -150,6 +156,7 @@ func (t *Tracer) run() {
 			WithMountNsID: eventtypes.WithMountNsID{MountNsID: bpfEvent.MntnsId},
 			Retval:        int(bpfEvent.Retval),
 			Comm:          gadgets.FromCString(bpfEvent.Comm[:]),
+			Cwd:           gadgets.FromCString(bpfEvent.Cwd[:]),
 		}
 
 		argsCount := 0
@@ -177,6 +184,8 @@ func (t *Tracer) run() {
 // --- Registry changes
 
 func (t *Tracer) Run(gadgetCtx gadgets.GadgetContext) error {
+	t.config.GetCwd = gadgetCtx.GadgetParams().Get(ParamCwd).AsBool()
+
 	defer t.close()
 	if err := t.install(); err != nil {
 		return fmt.Errorf("installing tracer: %w", err)
