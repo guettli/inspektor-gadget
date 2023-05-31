@@ -56,7 +56,7 @@ func GetColumns() *columns.Columns[Event] {
 
 	// Hide container column for kubernetes environment
 	if environment.Environment == environment.Kubernetes {
-		col, _ := cols.GetColumn("container")
+		col, _ := cols.GetColumn("containername")
 		col.Visible = false
 	}
 

@@ -35,12 +35,13 @@ func newTopTCPCmd(ns string, cmd string, startAndStop bool) *Command {
 		}
 
 		normalize := func(e *toptcpTypes.Stats) {
-			e.Node = ""
 			e.MountNsID = 0
 			e.Pid = 0
 			e.Sport = 0
 			e.Sent = 0
 			e.Received = 0
+
+			e.K8s.Node = ""
 		}
 
 		return ExpectEntriesInMultipleArrayToMatch(output, normalize, expectedEntry)

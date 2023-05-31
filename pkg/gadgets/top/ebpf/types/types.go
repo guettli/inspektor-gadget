@@ -54,9 +54,9 @@ func GetColumns() *columns.Columns[Stats] {
 
 	col, _ := cols.GetColumn("namespace")
 	col.Visible = false
-	col, _ = cols.GetColumn("pod")
+	col, _ = cols.GetColumn("podname")
 	col.Visible = false
-	col, _ = cols.GetColumn("container")
+	col, _ = cols.GetColumn("containername")
 	col.Visible = false
 
 	cols.MustAddColumn(columns.Attributes{

@@ -73,9 +73,9 @@ func GetColumns() *columns.Columns[Event] {
 	// Indeed, namespace, podname and containername are printed by the list
 	// subcommand.
 	// They can be printed later nonetheless with the following code snippet:
-	// column, _ := columns.GetColumn("pod")
+	// column, _ := columns.GetColumn("podname")
 	// column.Visible = true
-	columns := []string{"node", "namespace", "pod", "container"}
+	columns := []string{"node", "namespace", "podname", "containername"}
 	for _, name := range columns {
 		column, ok := cols.GetColumn(name)
 		if !ok {
