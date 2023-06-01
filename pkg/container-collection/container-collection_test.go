@@ -71,7 +71,9 @@ func TestWithTracerCollection(t *testing.T) {
 
 		containers[i] = &Container{
 			Runtime: RuntimeMetadata{
-				ContainerID: fmt.Sprintf("id%d", i),
+				BasicRuntimeMetadata: types.BasicRuntimeMetadata{
+					ContainerID: fmt.Sprintf("id%d", i),
+				},
 			},
 			Mntns: runner.Info.MountNsID,
 			Pid:   uint32(runner.Info.Pid),
