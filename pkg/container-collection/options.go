@@ -552,16 +552,12 @@ func WithRuncFanotify() ContainerCollectionOption {
 				container := &Container{
 					Runtime: RuntimeMetadata{
 						BasicRuntimeMetadata: types.BasicRuntimeMetadata{
-							ContainerID: notif.ContainerID,
+							ContainerID:   notif.ContainerID,
+							ContainerName: notif.ContainerName,
 						},
 					},
 					Pid:       notif.ContainerPID,
 					OciConfig: notif.ContainerConfig,
-					K8s: K8sMetadata{
-						BasicK8sMetadata: types.BasicK8sMetadata{
-							ContainerName: notif.ContainerName,
-						},
-					},
 				}
 				cc.AddContainer(container)
 			case runcfanotify.EventTypeRemoveContainer:
