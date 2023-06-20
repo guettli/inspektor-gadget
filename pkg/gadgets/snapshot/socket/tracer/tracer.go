@@ -18,9 +18,8 @@ package tracer
 
 import (
 	"bufio"
-	"encoding/binary"
 	"fmt"
-	"net"
+	"unsafe"
 
 	"github.com/cilium/ebpf/link"
 
@@ -45,17 +44,6 @@ type Tracer struct {
 	visitedNamespaces map[uint64]uint32
 	protocols         socketcollectortypes.Proto
 	eventHandler      func([]*socketcollectortypes.Event)
-}
-
-func parseIPv4(ipU32 uint32) string {
-	ipBytes := make([]byte, 4)
-
-	// net.IP() expects network byte order and parseIPv4 receives an
-	// argument in host byte order, so it needs to be converted first
-	binary.BigEndian.PutUint32(ipBytes, ipU32)
-	ip := net.IP(ipBytes)
-
-	return ip.String()
 }
 
 // Format from socket_bpf_seq_print() in bpf/socket_common.h
@@ -139,16 +127,17 @@ func (t *Tracer) RunCollector(pid uint32, podname, namespace, node string) ([]*s
 			scanner := bufio.NewScanner(reader)
 			for scanner.Scan() {
 				var status, proto string
-				var destp, srcp uint16
-				var dest, src uint32
+				var destp, srcp, fam uint16
+				dest := make([]byte, 16, 16)
+				src := make([]byte, 16, 16)
 				var hexStatus uint8
 				var inodeNumber uint64
 
 				// Format from socket_bpf_seq_print() in bpf/socket_common.h
 				// IP addresses and ports are in host-byte order
-				len, err := fmt.Sscanf(scanner.Text(), "%s %08X %04X %08X %04X %02X %d",
-					&proto, &src, &srcp, &dest, &destp, &hexStatus, &inodeNumber)
-				if err != nil || len != 7 {
+				matched, err := fmt.Sscanf(scanner.Text(), "%s %04X %08X %04X %08X %04X %02X %d",
+					&proto, &fam, &((*[4]uint32)(unsafe.Pointer(&src[0])))[0], &srcp, &((*[4]uint32)(unsafe.Pointer(&dest[0])))[0], &destp, &hexStatus, &inodeNumber)
+				if err != nil || matched != 8 {
 					return fmt.Errorf("parsing sockets information: %w", err)
 				}
 
@@ -162,6 +151,8 @@ func (t *Tracer) RunCollector(pid uint32, podname, namespace, node string) ([]*s
 				if err != nil {
 					return fmt.Errorf("getting netns for pid %d: %w", pid, err)
 				}
+
+				family := gadgets.IPVerFromAF(fam)
 
 				sockets = append(sockets, &socketcollectortypes.Event{
 					Event: eventtypes.Event{
@@ -177,13 +168,13 @@ func (t *Tracer) RunCollector(pid uint32, podname, namespace, node string) ([]*s
 					Protocol: proto,
 					SrcEndpoint: eventtypes.L4Endpoint{
 						L3Endpoint: eventtypes.L3Endpoint{
-							Addr: parseIPv4(src),
+							Addr: gadgets.IPStringFromBytes(*(*[16]byte)(src), family),
 						},
 						Port: srcp,
 					},
 					DstEndpoint: eventtypes.L4Endpoint{
 						L3Endpoint: eventtypes.L3Endpoint{
-							Addr: parseIPv4(dest),
+							Addr: gadgets.IPStringFromBytes(*(*[16]byte)(dest), family),
 						},
 						Port: destp,
 					},

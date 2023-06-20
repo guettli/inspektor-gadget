@@ -56,7 +56,7 @@ static unsigned long sock_i_ino(const struct sock *sk)
  * This function receives arguments as they are stored
  * in the different socket structure, i.e. network-byte order.
  */
-static __always_inline void socket_bpf_seq_print(struct seq_file *seq,
+static __always_inline void socket_bpf_seq_print_v4(struct seq_file *seq,
                 const char* protocol, const __be32 src,
                 const __u16 srcp, const __be32 dest,
                 const __u16 destp, const unsigned char state, long ino)
@@ -66,13 +66,15 @@ static __always_inline void socket_bpf_seq_print(struct seq_file *seq,
      * in this format:
      *
      * protocol: "TCP" or "UDP"
-     * IP addresses and ports: Hexadecimal in host-byte order.
+     * family: AF_INET
+     * IP addresses: Hexadecimal in network-byte order.
+     * ports: Hexadecimal in host-byte order.
      * state: Hexadecimal of https://github.com/torvalds/linux/blob/v5.13/include/net/tcp_states.h#L12-L24
      * ino: unsigned long.
      */
-    BPF_SEQ_PRINTF(seq, "%s %08X %04X %08X %04X %02X %lu\n",
-        protocol, bpf_ntohl(src), bpf_ntohs(srcp),
-        bpf_ntohl(dest), bpf_ntohs(destp), state, ino);
+    BPF_SEQ_PRINTF(seq, "%s %04X %08X %04X %08X %04X %02X %lu\n",
+        protocol, AF_INET, src, bpf_ntohs(srcp),
+        dest, bpf_ntohs(destp), state, ino);
 }
 
 #endif /* __GADGET_SOCKET_COMMON_H__ */

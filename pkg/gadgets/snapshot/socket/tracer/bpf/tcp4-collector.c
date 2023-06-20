@@ -27,7 +27,7 @@ static int dump_tcp_sock(struct seq_file *seq, struct tcp_sock *tp)
 	const struct inet_sock *inet = &icsk->icsk_inet;
 	const struct sock *sp = &inet->sk;
 
-	socket_bpf_seq_print(seq, proto, inet->inet_rcv_saddr,
+	socket_bpf_seq_print_v4(seq, proto, inet->inet_rcv_saddr,
 		inet->inet_sport, inet->inet_daddr,
 		inet->inet_dport, sp->sk_state, sock_i_ino(sp));
 
@@ -38,7 +38,7 @@ static int dump_tw_sock(struct seq_file *seq, struct tcp_timewait_sock *ttw)
 {
 	struct inet_timewait_sock *tw = &ttw->tw_sk;
 
-	socket_bpf_seq_print(seq, proto, tw->tw_rcv_saddr,
+	socket_bpf_seq_print_v4(seq, proto, tw->tw_rcv_saddr,
 		tw->tw_sport, tw->tw_daddr,
 		/*
 		 * tcp_timewait_sock represents socket in TIME_WAIT state.
@@ -62,7 +62,7 @@ static int dump_req_sock(struct seq_file *seq, struct tcp_request_sock *treq)
 {
 	struct inet_request_sock *irsk = &treq->req;
 
-	socket_bpf_seq_print(seq, proto, irsk->ir_loc_addr,
+	socket_bpf_seq_print_v4(seq, proto, irsk->ir_loc_addr,
 		irsk->ir_num, irsk->ir_rmt_addr, irsk->ir_rmt_port,
 		TCP_SYN_RECV, sock_i_ino(treq->req.req.sk));
 

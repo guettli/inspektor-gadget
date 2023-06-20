@@ -42,7 +42,7 @@ int ig_snap_udp4(struct bpf_iter__udp *ctx)
 	if (inet->sk.sk_family != AF_INET)
 		return 0;
 
-	socket_bpf_seq_print(seq, proto, inet->inet_rcv_saddr,
+	socket_bpf_seq_print_v4(seq, proto, inet->inet_rcv_saddr,
 		inet->inet_sport, inet->inet_daddr,
 		inet->inet_dport, inet->sk.sk_state, sock_i_ino(&inet->sk));
 
