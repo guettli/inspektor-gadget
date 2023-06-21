@@ -27,7 +27,7 @@ char _license[] SEC("license") = "GPL";
 static const char proto[] = "UDP";
 
 SEC("iter/udp")
-int ig_snap_udp4(struct bpf_iter__udp *ctx)
+int ig_snap_udp(struct bpf_iter__udp *ctx)
 {
 	struct seq_file *seq = ctx->meta->seq;
 	struct udp_sock *udp_sk = ctx->udp_sk;
@@ -38,13 +38,22 @@ int ig_snap_udp4(struct bpf_iter__udp *ctx)
 
 	inet = &udp_sk->inet;
 
-	/* Filter out IPv6 for now */
-	if (inet->sk.sk_family != AF_INET)
-		return 0;
+	switch (inet->sk.sk_family) {
+	case AF_INET:
+		socket_bpf_seq_print_v4(seq, proto, inet->inet_rcv_saddr,
+			inet->inet_sport, inet->inet_daddr,
+			inet->inet_dport, inet->sk.sk_state, sock_i_ino(&inet->sk));
 
-	socket_bpf_seq_print_v4(seq, proto, inet->inet_rcv_saddr,
-		inet->inet_sport, inet->inet_daddr,
-		inet->inet_dport, inet->sk.sk_state, sock_i_ino(&inet->sk));
+		break;
+	case AF_INET6:
+		socket_bpf_seq_print_v6(seq, proto, inet->sk.__sk_common.skc_v6_rcv_saddr.in6_u.u6_addr8,
+			inet->inet_sport, inet->sk.__sk_common.skc_v6_daddr.in6_u.u6_addr8,
+			inet->inet_dport, inet->sk.sk_state, sock_i_ino(&inet->sk));
+
+		break;
+	default:
+		return 0;
+	}
 
 	return 0;
 }
