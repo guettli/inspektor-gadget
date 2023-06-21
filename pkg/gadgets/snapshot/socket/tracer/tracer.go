@@ -31,8 +31,8 @@ import (
 	eventtypes "github.com/inspektor-gadget/inspektor-gadget/pkg/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target bpfel -cc clang iterTCPv4 ./bpf/tcp4-collector.c -- -I../../../../${TARGET} -Werror -O2 -g -c -x c
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target bpfel -cc clang iterUDPv4 ./bpf/udp4-collector.c -- -I../../../../${TARGET} -Werror -O2 -g -c -x c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target bpfel -cc clang iterTCP ./bpf/tcp-collector.c -- -I../../../../${TARGET} -Werror -O2 -g -c -x c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target bpfel -cc clang iterUDP ./bpf/udp-collector.c -- -I../../../../${TARGET} -Werror -O2 -g -c -x c
 
 type Tracer struct {
 	iters map[socketcollectortypes.Proto]*link.Iter
@@ -76,14 +76,14 @@ func parseStatus(proto string, statusUint uint8) (string, error) {
 }
 
 func getTCPIter() (*link.Iter, error) {
-	objs := iterTCPv4Objects{}
-	if err := loadIterTCPv4Objects(&objs, nil); err != nil {
+	objs := iterTCPObjects{}
+	if err := loadIterTCPObjects(&objs, nil); err != nil {
 		return nil, fmt.Errorf("loading TCP BPF objects: %w", err)
 	}
 	defer objs.Close()
 
 	it, err := link.AttachIter(link.IterOptions{
-		Program: objs.IgSnapTcp4,
+		Program: objs.IgSnapTcp,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("attaching TCP BPF iterator: %w", err)
@@ -93,14 +93,14 @@ func getTCPIter() (*link.Iter, error) {
 }
 
 func getUDPIter() (*link.Iter, error) {
-	objs := iterUDPv4Objects{}
-	if err := loadIterUDPv4Objects(&objs, nil); err != nil {
+	objs := iterUDPObjects{}
+	if err := loadIterUDPObjects(&objs, nil); err != nil {
 		return nil, fmt.Errorf("loading UDP BPF objects: %w", err)
 	}
 	defer objs.Close()
 
 	it, err := link.AttachIter(link.IterOptions{
-		Program: objs.IgSnapUdp4,
+		Program: objs.IgSnapUdp,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("attaching UDP BPF iterator: %w", err)
@@ -133,11 +133,50 @@ func (t *Tracer) RunCollector(pid uint32, podname, namespace, node string) ([]*s
 				var hexStatus uint8
 				var inodeNumber uint64
 
-				// Format from socket_bpf_seq_print() in bpf/socket_common.h
-				// IP addresses and ports are in host-byte order
-				matched, err := fmt.Sscanf(scanner.Text(), "%s %04X %08X %04X %08X %04X %02X %d",
-					&proto, &fam, &((*[4]uint32)(unsafe.Pointer(&src[0])))[0], &srcp, &((*[4]uint32)(unsafe.Pointer(&dest[0])))[0], &destp, &hexStatus, &inodeNumber)
-				if err != nil || matched != 8 {
+				line := scanner.Text()
+
+				matched, err := fmt.Sscanf(line, "%s %04X", &proto, &fam)
+				if err != nil {
+					return fmt.Errorf("parsing sockets protocol and family: %w", err)
+				}
+				if matched != 2 {
+					return fmt.Errorf("expecting to match 2 elements, matched: %d", matched)
+				}
+
+				family := gadgets.IPVerFromAF(fam)
+				switch family {
+				case 4:
+					matched, err = fmt.Sscanf(line, "%s %04X %08X %04X %08X %04X %02X %d",
+						&proto, &fam, &((*[4]uint32)(unsafe.Pointer(&src[0])))[0], &srcp, &((*[4]uint32)(unsafe.Pointer(&dest[0])))[0], &destp, &hexStatus, &inodeNumber)
+
+					if matched != 8 {
+						return fmt.Errorf("expecting to match 8 elements, matched: %d", matched)
+					}
+				case 6:
+					var srcIPv6, destIPv6 string
+
+					matched, err = fmt.Sscanf(line, "%s %04X %s %04X %s %04X %02X %d",
+						&proto, &fam, &srcIPv6, &srcp, &destIPv6, &destp, &hexStatus, &inodeNumber)
+					if matched != 8 {
+						return fmt.Errorf("expecting to match 8 elements, matched: %d", matched)
+					}
+
+					s, err := gadgets.IPStringToByteArray(srcIPv6)
+					if err != nil {
+						return fmt.Errorf("parsing source IPv6 address: %w", err)
+					}
+					src = s[:]
+
+					d, err := gadgets.IPStringToByteArray(destIPv6)
+					if err != nil {
+						return fmt.Errorf("parsing destination IPv6 address: %w", err)
+					}
+					dest = d[:]
+				default:
+					return fmt.Errorf("expecting IP version 4 or 6, got: %d", family)
+				}
+
+				if err != nil {
 					return fmt.Errorf("parsing sockets information: %w", err)
 				}
 
@@ -151,8 +190,6 @@ func (t *Tracer) RunCollector(pid uint32, podname, namespace, node string) ([]*s
 				if err != nil {
 					return fmt.Errorf("getting netns for pid %d: %w", pid, err)
 				}
-
-				family := gadgets.IPVerFromAF(fam)
 
 				sockets = append(sockets, &socketcollectortypes.Event{
 					Event: eventtypes.Event{
