@@ -80,6 +80,8 @@ func TestAdviseNetworkpolicy(t *testing.T) {
 
 					e.K8s.Node = ""
 					e.K8s.ContainerName = ""
+					// TODO: Verify container runtime and container name
+					e.Runtime = eventtypes.BasicRuntimeMetadata{}
 				}
 
 				return ExpectEntriesToMatch(output, normalize, expectedEntry)
@@ -135,6 +137,8 @@ func TestAdviseNetworkpolicy(t *testing.T) {
 
 					e.K8s.Node = ""
 					e.K8s.ContainerName = ""
+					// TODO: Verify container runtime and container name
+					e.Runtime = eventtypes.BasicRuntimeMetadata{}
 				}
 
 				return ExpectEntriesToMatch(output, normalize, expectedEntry)

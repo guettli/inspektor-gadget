@@ -66,7 +66,7 @@ type Container struct {
 	// This is only used when cachedContainers are enabled through WithTracerCollection().
 	mntNsFd int
 
-	// when the container was removed. Useful for prunning cached containers.
+	// when the container was removed. Useful for running cached containers.
 	deletionTimestamp time.Time
 }
 
@@ -87,8 +87,14 @@ type K8sSelector struct {
 	PodLabels map[string]string
 }
 
+type RuntimeSelector struct {
+	// TODO: Support filtering by all the fields in BasicRuntimeMetadata
+	ContainerName string
+}
+
 type ContainerSelector struct {
-	K8sSelector K8sSelector
+	K8s     K8sSelector
+	Runtime RuntimeSelector
 }
 
 // GetOwnerReference returns the owner reference information of the
@@ -179,8 +185,4 @@ func ownerReferenceEnrichment(
 
 func GetColumns() *columns.Columns[Container] {
 	return columns.MustCreateColumns[Container]()
-}
-
-func (c *Container) IsEnriched() bool {
-	return c.K8s.ContainerName != "" && c.K8s.PodName != "" && c.K8s.Namespace != "" && c.K8s.PodUID != "" && c.Runtime.RuntimeName != ""
 }

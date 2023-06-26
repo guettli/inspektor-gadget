@@ -104,7 +104,7 @@ func String2RuntimeName(name string) RuntimeName {
 type BasicRuntimeMetadata struct {
 	// RuntimeName is the name of the container runtime. It is useful to distinguish
 	// who is the "owner" of each container in a list of containers collected
-	// from multiples runtimes.
+	// from multiple runtimes.
 	RuntimeName RuntimeName `json:"runtimeName,omitempty" column:"runtimeName,minWidth:5,maxWidth:12"`
 
 	// ContainerID is the container ContainerID without the container runtime prefix. For
@@ -112,19 +112,22 @@ type BasicRuntimeMetadata struct {
 	ContainerID string `json:"containerId,omitempty" column:"containerId,width:13,maxWidth:64"`
 
 	// ContainerName is the container name. In the case the container runtime
-	// response with multiples, ContainerName contains only the first element.
-	// TODO: Info not yet available. We are temporarily using the k8s container
-	// name as the container name for "ig list-containers". Hide it for now.
-	ContainerName string `json:"containerName,omitempty" column:"runtimeContainerName,template:container,hide"`
+	// response with multiple containers, ContainerName contains only the first element.
+	ContainerName string `json:"containerName,omitempty" column:"containerName,template:container"`
+}
+
+func (b *BasicRuntimeMetadata) IsEnriched() bool {
+	return b.RuntimeName != RuntimeNameUnknown && b.RuntimeName != "" && b.ContainerID != "" && b.ContainerName != ""
 }
 
 type BasicK8sMetadata struct {
-	Namespace string `json:"namespace,omitempty"`
-	PodName   string `json:"podName,omitempty"`
-	// ContainerName is tagged as "runtime" because we are temporarily using the k8s
-	// container name as the container name for "ig list-containers" because the
-	// ContainerName struct does not have the runtime container name field.
-	ContainerName string `json:"containerName,omitempty" column:"containerName,template:container" columnTags:"runtime"`
+	Namespace     string `json:"namespace,omitempty" column:"namespace,template:namespace"`
+	PodName       string `json:"podName,omitempty" column:"podName,template:pod"`
+	ContainerName string `json:"containerName,omitempty" column:"containerName,template:container"`
+}
+
+func (b *BasicK8sMetadata) IsEnriched() bool {
+	return b.Namespace != "" && b.PodName != "" && b.ContainerName != ""
 }
 
 type K8sMetadata struct {
@@ -150,14 +153,18 @@ func (c *CommonData) SetNode(node string) {
 	c.K8s.Node = node
 }
 
-func (c *CommonData) SetContainerInfo(pod, namespace, container string) {
-	c.K8s.PodName = pod
-	c.K8s.Namespace = namespace
+func (c *CommonData) SetContainerMetadata(k8s *BasicK8sMetadata, runtime *BasicRuntimeMetadata, setContainerInfo bool) {
+	c.K8s.PodName = k8s.PodName
+	c.K8s.Namespace = k8s.Namespace
 
-	// Container may have been enriched before by other means, so don't delete it here,
-	// if the incoming info is empty
-	if container != "" {
-		c.K8s.ContainerName = container
+	// In some cases, we don't have enough information to determine the exact
+	// container where the event happened.
+	if setContainerInfo {
+		c.K8s.ContainerName = k8s.ContainerName
+
+		c.Runtime.RuntimeName = runtime.RuntimeName
+		c.Runtime.ContainerName = runtime.ContainerName
+		c.Runtime.ContainerID = runtime.ContainerID
 	}
 }
 

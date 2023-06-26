@@ -22,6 +22,7 @@ import (
 
 	. "github.com/inspektor-gadget/inspektor-gadget/integration"
 	topebpfTypes "github.com/inspektor-gadget/inspektor-gadget/pkg/gadgets/top/ebpf/types"
+	"github.com/inspektor-gadget/inspektor-gadget/pkg/types"
 )
 
 func newTopEbpfCmd(cmd string, startAndStop bool) *Command {
@@ -43,11 +44,9 @@ func newTopEbpfCmd(cmd string, startAndStop bool) *Command {
 			e.MapMemory = 0
 			e.MapCount = 0
 
-			e.K8s.Node = ""
-			e.K8s.Namespace = ""
-			e.K8s.PodName = ""
-			e.K8s.ContainerName = ""
-			e.K8s.Namespace = ""
+			e.K8s = types.K8sMetadata{}
+			// TODO: Verify container runtime and container name
+			e.Runtime = types.BasicRuntimeMetadata{}
 		}
 
 		return ExpectEntriesInMultipleArrayToMatch(output, normalize, expectedEntry)
