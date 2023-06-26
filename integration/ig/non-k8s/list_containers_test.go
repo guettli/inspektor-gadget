@@ -34,11 +34,13 @@ func TestFilterByContainerName(t *testing.T) {
 				K8s: containercollection.K8sMetadata{
 					ContainerName: cn,
 				},
-				Runtime: "docker",
+				Runtime: containercollection.RuntimeMetadata{
+					RuntimeName: "docker",
+				},
 			}
 
 			normalize := func(c *containercollection.Container) {
-				c.ID = ""
+				c.Runtime.ContainerID = ""
 				c.Pid = 0
 				c.OciConfig = nil
 				c.Bundle = ""
@@ -85,7 +87,9 @@ func TestWatchContainers(t *testing.T) {
 						K8s: containercollection.K8sMetadata{
 							ContainerName: cn,
 						},
-						Runtime: "docker",
+						Runtime: containercollection.RuntimeMetadata{
+							RuntimeName: "docker",
+						},
 					},
 				},
 				{
@@ -94,13 +98,15 @@ func TestWatchContainers(t *testing.T) {
 						K8s: containercollection.K8sMetadata{
 							ContainerName: cn,
 						},
-						Runtime: "docker",
+						Runtime: containercollection.RuntimeMetadata{
+							RuntimeName: "docker",
+						},
 					},
 				},
 			}
 
 			normalize := func(e *containercollection.PubSubEvent) {
-				e.Container.ID = ""
+				e.Container.Runtime.ContainerID = ""
 				e.Container.Pid = 0
 				e.Container.OciConfig = nil
 				e.Container.Bundle = ""
