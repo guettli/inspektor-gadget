@@ -53,6 +53,13 @@ const (
 	// Name of the map that stores the mount namespace inode id to filter on.
 	// Keep in syn with name used in pkg/gadgets/common/mntns_filter.h.
 	MntNsFilterMapName = "gadget_mntns_filter_map"
+
+	// Name of the type that gadgets should use to store an endpoint.
+	// Keep in sync with pkg/gadgets/common/types.h
+	EndpointTypeName = "gadget_endpoint_t"
+
+	// Name of the type to store a mount namespace inode id
+	MntNsIdTypeName = "mnt_ns_id_t"
 )
 
 // CloseLink closes l if it's not nil and returns nil
