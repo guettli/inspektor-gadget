@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 
 	utilstest "github.com/inspektor-gadget/inspektor-gadget/internal/test"
@@ -40,9 +39,7 @@ func TestExecTracerCreate(t *testing.T) {
 	utilstest.RequireRoot(t)
 
 	tracer := createTracer(t, &tracer.Config{}, func(*types.Event) {})
-	if tracer == nil {
-		t.Fatal("Returned tracer was nil")
-	}
+	require.NotNil(t, tracer, "Returned tracer was nil")
 }
 
 func TestExecTracerStopIdempotent(t *testing.T) {
@@ -72,9 +69,7 @@ func TestExecTracer(t *testing.T) {
 	}
 
 	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.Nil(t, err, "Failed to get current working directory: %s", err)
 
 	type testDefinition struct {
 		getTracerConfig func(info *utilstest.RunnerInfo) *tracer.Config
@@ -154,15 +149,9 @@ func TestExecTracer(t *testing.T) {
 			},
 			generateEvent: generateEvent,
 			validateEvent: func(t *testing.T, info *utilstest.RunnerInfo, _ int, events []types.Event) {
-				if len(events) != 1 {
-					t.Fatalf("One event expected")
-				}
-
-				utilstest.Equal(t, uint32(info.Uid), events[0].Uid,
-					"Event has bad UID")
-
-				utilstest.Equal(t, uint32(info.Gid), events[0].Gid,
-					"Event has bad GID")
+				require.Len(t, events, 1, "One event expected")
+				require.Equal(t, uint32(info.Uid), events[0].Uid, "Event has bad UID")
+				require.Equal(t, uint32(info.Gid), events[0].Gid, "Event has bad GID")
 			},
 		},
 		"truncates_captured_args_in_trace_to_maximum_possible_length": {
@@ -181,13 +170,8 @@ func TestExecTracer(t *testing.T) {
 				return cmd.Process.Pid, nil
 			},
 			validateEvent: func(t *testing.T, info *utilstest.RunnerInfo, _ int, events []types.Event) {
-				if len(events) != 1 {
-					t.Fatalf("One event expected")
-				}
-
-				if diff := cmp.Diff(events[0].Args, append([]string{"/bin/cat"}, manyArgs...)); diff != "" {
-					t.Fatalf("Event has bad args, diff: \n%s", diff)
-				}
+				require.Len(t, events, 1, "One event expected")
+				require.Equal(t, append([]string{"/bin/cat"}, manyArgs...), events[0].Args, "Event has bad args")
 			},
 		},
 		"event_has_correct_cwd": {
@@ -207,10 +191,7 @@ func TestExecTracer(t *testing.T) {
 				return cmd.Process.Pid, nil
 			},
 			validateEvent: func(t *testing.T, info *utilstest.RunnerInfo, _ int, events []types.Event) {
-				if len(events) != 1 {
-					t.Fatalf("One event expected")
-				}
-
+				require.Len(t, events, 1, "One event expected")
 				require.Equal(t, events[0].Cwd, cwd, "Event has bad cwd")
 			},
 		},
@@ -296,9 +277,7 @@ func TestExecTracerMultipleMntNsIDsFilter(t *testing.T) {
 	// Give some time for the tracer to capture the events
 	time.Sleep(100 * time.Millisecond)
 
-	if len(events) != n-1 {
-		t.Fatalf("%d events were expected, %d found", n-1, len(events))
-	}
+	require.Len(t, events, n-1)
 
 	// Pop last event since it shouldn't have been captured
 	expectedEvents = expectedEvents[:n-1]
@@ -312,10 +291,10 @@ func TestExecTracerMultipleMntNsIDsFilter(t *testing.T) {
 	})
 
 	for i := 0; i < n-1; i++ {
-		utilstest.Equal(t, expectedEvents[i].mntNsID, events[i].WithMountNsID.MountNsID,
+		require.Equal(t, expectedEvents[i].mntNsID, events[i].WithMountNsID.MountNsID,
 			"Captured event has bad MountNsID")
 
-		utilstest.Equal(t, uint32(expectedEvents[i].catPid), events[i].Pid,
+		require.Equal(t, uint32(expectedEvents[i].catPid), events[i].Pid,
 			"Captured event has bad PID")
 	}
 }
@@ -326,9 +305,7 @@ func createTracer(
 	t.Helper()
 
 	tracer, err := tracer.NewTracer(config, nil, callback)
-	if err != nil {
-		t.Fatalf("Error creating tracer: %s", err)
-	}
+	require.Nil(t, err, "Error creating tracer: %s", err)
 	t.Cleanup(tracer.Stop)
 
 	return tracer
