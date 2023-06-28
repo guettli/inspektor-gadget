@@ -31,8 +31,8 @@ func init() {
 	columns.MustRegisterTemplate("timestamp", "width:35,maxWidth:35,hide")
 	columns.MustRegisterTemplate("node", "width:30,ellipsis:middle")
 	columns.MustRegisterTemplate("namespace", "width:30")
-	columns.MustRegisterTemplate("pod", "width:30,ellipsis:middle")
-	columns.MustRegisterTemplate("container", "width:30")
+	columns.MustRegisterTemplate("podname", "width:30,ellipsis:middle")
+	columns.MustRegisterTemplate("containername", "width:30")
 	columns.MustRegisterTemplate("comm", "maxWidth:16")
 	columns.MustRegisterTemplate("pid", "minWidth:7")
 	columns.MustRegisterTemplate("uid", "minWidth:8")
@@ -113,7 +113,7 @@ type BasicRuntimeMetadata struct {
 
 	// ContainerName is the container name. In the case the container runtime
 	// response with multiple containers, ContainerName contains only the first element.
-	ContainerName string `json:"containerName,omitempty" column:"containerName,template:container"`
+	ContainerName string `json:"containerName,omitempty" column:"containerName,template:containername"`
 }
 
 func (b *BasicRuntimeMetadata) IsEnriched() bool {
@@ -122,8 +122,8 @@ func (b *BasicRuntimeMetadata) IsEnriched() bool {
 
 type BasicK8sMetadata struct {
 	Namespace     string `json:"namespace,omitempty" column:"namespace,template:namespace"`
-	PodName       string `json:"podName,omitempty" column:"podName,template:pod"`
-	ContainerName string `json:"containerName,omitempty" column:"containerName,template:container"`
+	PodName       string `json:"podName,omitempty" column:"podName,template:podname"`
+	ContainerName string `json:"containerName,omitempty" column:"containerName,template:containername"`
 }
 
 func (b *BasicK8sMetadata) IsEnriched() bool {

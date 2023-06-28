@@ -43,8 +43,8 @@ type Event struct {
 type TraceloopInfo struct {
 	Node          string `json:"node,omitempty" column:"node,template:node"`
 	Namespace     string `json:"namespace,omitempty" column:"namespace,template:namespace"`
-	Podname       string `json:"podname,omitempty" column:"pod,template:pod"`
-	Containername string `json:"containername,omitempty" column:"container,template:container"`
+	Podname       string `json:"podname,omitempty" column:"pod,template:podname"`
+	Containername string `json:"containername,omitempty" column:"container,template:containername"`
 	ContainerID   string `json:"containerID,omitempty" column:"containerID,minWidth:12,ellipsis:none"`
 }
 

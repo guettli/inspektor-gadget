@@ -237,7 +237,6 @@ func TestWatchDeletedContainers(t *testing.T) {
 			}
 
 			normalize := func(e *containercollection.PubSubEvent) {
-				e.Container.Runtime.ContainerID = ""
 				e.Container.Pid = 0
 				e.Container.OciConfig = nil
 				e.Container.Bundle = ""
@@ -247,9 +246,11 @@ func TestWatchDeletedContainers(t *testing.T) {
 				e.Container.CgroupID = 0
 				e.Container.CgroupV1 = ""
 				e.Container.CgroupV2 = ""
+				e.Timestamp = ""
+
 				e.Container.K8s.PodLabels = nil
 				e.Container.K8s.PodUID = ""
-				e.Timestamp = ""
+				e.Container.Runtime.ContainerID = ""
 
 				// Docker and CRI-O uses a custom container name composed, among
 				// other things, by the pod UID. We don't know the pod UID in
@@ -287,12 +288,6 @@ func TestPodWithSecurityContext(t *testing.T) {
 	cn := "test-security-context"
 	po := cn
 	ns := GenerateTestNamespaceName(cn)
-
-	// TODO: Handle it once we support getting K8s container name for docker
-	// Issue: https://github.com/inspektor-gadget/inspektor-gadget/issues/737
-	if *containerRuntime == ContainerRuntimeDocker {
-		t.Skip("Skip TestPodWithSecurityContext on docker since we don't propagate the Kubernetes pod container name")
-	}
 
 	watchContainersCmd := &Command{
 		Name:         "RunWatchContainers",
@@ -332,6 +327,17 @@ func TestPodWithSecurityContext(t *testing.T) {
 				e.Container.Runtime.ContainerID = ""
 				e.Container.K8s.PodLabels = nil
 				e.Container.K8s.PodUID = ""
+
+				// Docker and CRI-O uses a custom container name composed, among
+				// other things, by the pod UID. We don't know the pod UID in
+				// advance, so we can't match the expected container name.
+				// TODO: Create a test for this once we support filtering by k8s
+				// container name. See
+				// https://github.com/inspektor-gadget/inspektor-gadget/issues/1403.
+				if e.Container.Runtime.RuntimeName == ContainerRuntimeDocker ||
+					e.Container.Runtime.RuntimeName == ContainerRuntimeCRIO {
+					e.Container.Runtime.ContainerName = cn
+				}
 			}
 
 			return ExpectAllToMatch(output, normalize, expectedEvent)

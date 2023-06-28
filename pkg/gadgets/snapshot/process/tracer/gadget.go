@@ -91,7 +91,7 @@ func (g *GadgetDesc) OutputFormats() (gadgets.OutputFormats, string) {
 }
 
 func (g *GadgetDesc) SortByDefault() []string {
-	return []string{"node", "namespace", "pod", "container", "comm", "pid", "tid", "ppid"}
+	return []string{"node", "namespace", "podname", "containername", "comm", "pid", "tid", "ppid"}
 }
 
 func init() {
