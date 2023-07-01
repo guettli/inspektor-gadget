@@ -157,3 +157,24 @@ test-host                      24598            24577            cat            
 ```
 
 Events generated from containers have their container field set, while events which are generated from the host do not.
+
+### Using ig in a container
+
+```
+docker run -ti --rm --privileged -v /sys/fs/bpf:/sys/fs/bpf -v /sys/kernel/debug:/sys/kernel/debug -v /run:/run -v /:/host -e HOST_ROOT=/host ghcr.io/inspektor-gadget/ig --runtimes=docker trace exec
+```
+
+```
+docker run -ti --rm \
+    --privileged \
+    -v /sys/fs/bpf:/sys/fs/bpf \
+    -v /sys/kernel/debug:/sys/kernel/debug \
+    -v /run:/run \
+    -v /:/host \
+    -e HOST_ROOT=/host \
+    ghcr.io/inspektor-gadget/ig \
+    --runtimes=docker \
+    trace exec
+CONTAINER    PID        PPID       COMM  RET ARGS
+cool_wright  1163565    1154511    ls    0   /bin/ls
+```

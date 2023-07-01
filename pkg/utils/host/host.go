@@ -23,8 +23,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/cilium/ebpf/rlimit"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -65,9 +70,113 @@ func init() {
 	}
 	HostProcFs = filepath.Join(HostRoot, "/proc")
 
+	err := workarounds()
+	if err != nil {
+		panic(err)
+	}
+
 	// Initialize IsHost*Ns
 	IsHostPidNs = isHostNamespace("pid")
 	IsHostNetNs = isHostNamespace("net")
+}
+
+func workarounds() error {
+	// No memory limit for eBPF maps
+	if err := rlimit.RemoveMemlock(); err != nil {
+		return err
+	}
+
+	// Some environments (e.g. minikube) runs with a read-only /sys without bpf
+	// https://github.com/kubernetes/minikube/blob/99a0c91459f17ad8c83c80fc37a9ded41e34370c/deploy/kicbase/entrypoint#L76-L81
+	// Docker Desktop with WSL2 also has filesystems unmounted.
+	// Ensure filesystems are mounted correctly.
+	fs := []struct {
+		name  string
+		path  string
+		magic int64
+	}{
+		{
+			"bpf",
+			"/sys/fs/bpf",
+			unix.BPF_FS_MAGIC,
+		},
+		{
+			"debugfs",
+			"/sys/kernel/debug",
+			unix.DEBUGFS_MAGIC,
+		},
+		{
+			"tracefs",
+			"/sys/kernel/tracing",
+			unix.TRACEFS_MAGIC,
+		},
+	}
+	for _, f := range fs {
+		var statfs unix.Statfs_t
+		err := unix.Statfs(f.path, &statfs)
+		if err != nil {
+			return fmt.Errorf("statfs %s: %w", f.path, err)
+		}
+		if statfs.Type == f.magic {
+			log.Debugf("%s already mounted", f.name)
+		} else {
+			err := unix.Mount("none", f.path, f.name, 0, "")
+			if err != nil {
+				return fmt.Errorf("mounting %s: %w", f.path, err)
+			}
+			log.Debugf("%s mounted (%s)", f.name, f.path)
+		}
+	}
+
+	// Docker Desktop with WSL2 sets up host volumes with weird pidns.
+	if HostRoot != "/" {
+		target, err := os.Readlink(HostProcFs + "/self")
+		if err != nil || target == "" {
+			log.Warnf("%s's pidns is neither the current pidns or a parent of the current pidns. Remounting.", HostProcFs)
+			err := unix.Mount("/proc", HostProcFs, "", unix.MS_BIND, "")
+			if err != nil {
+				return fmt.Errorf("remounting %s: %w", HostProcFs, err)
+			}
+			// Find lifecycle-server process and set HOST_PID to its root
+			processes, err := os.ReadDir(HostProcFs)
+			if err != nil {
+				return fmt.Errorf("reading %s: %w", HostProcFs, err)
+			}
+			for _, p := range processes {
+				if !p.IsDir() {
+					continue
+				}
+				_, err := strconv.Atoi(p.Name())
+				if err != nil {
+					continue
+				}
+				buf, err := os.ReadFile(fmt.Sprintf("/proc/%s/cmdline", p.Name()))
+				if err != nil {
+					continue
+				}
+				cmdLine := strings.Split(string(buf), "\x00")
+				if cmdLine[0] != "/usr/bin/lifecycle-server" {
+					continue
+				}
+				log.Debugf("Found lifecycle-server process %s", p.Name())
+				buf, err = os.ReadFile(fmt.Sprintf("/proc/%s/cgroup", p.Name()))
+				if err != nil {
+					continue
+				}
+				if !strings.Contains(string(buf), "/podruntime/docker") {
+					continue
+				}
+				log.Debugf("Found lifecycle-server process %s in cgroup /podruntime/docker", p.Name())
+
+				HostRoot = fmt.Sprintf("/proc/%s/root/", p.Name())
+				HostProcFs = filepath.Join(HostRoot, "/proc")
+				log.Warnf("Overriding HostRoot=%s HostProcFs=%s (lifecycle-server)", HostRoot, HostProcFs)
+
+				break
+			}
+		}
+	}
+	return nil
 }
 
 func GetProcComm(pid int) string {
