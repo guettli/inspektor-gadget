@@ -158,14 +158,21 @@ test-host                      24598            24577            cat            
 
 Events generated from containers have their container field set, while events which are generated from the host do not.
 
+### Using ig with kubectl debug
+
+Examples of commands:
+
+```bash
+$ kubectl debug node/minikube-docker -ti --image=ghcr.io/inspektor-gadget/ig -- ig trace exec
+$ kubectl debug node/minikube-docker -ti --image=ghcr.io/inspektor-gadget/ig -- ig list-containers -o json
+```
+
 ### Using ig in a container
 
-```
-docker run -ti --rm --privileged -v /sys/fs/bpf:/sys/fs/bpf -v /sys/kernel/debug:/sys/kernel/debug -v /run:/run -v /:/host -e HOST_ROOT=/host ghcr.io/inspektor-gadget/ig --runtimes=docker trace exec
-```
+Example of command:
 
-```
-docker run -ti --rm \
+```bash
+$ docker run -ti --rm \
     --privileged \
     -v /sys/fs/bpf:/sys/fs/bpf \
     -v /sys/kernel/debug:/sys/kernel/debug \
@@ -173,8 +180,9 @@ docker run -ti --rm \
     -v /:/host \
     -e HOST_ROOT=/host \
     ghcr.io/inspektor-gadget/ig \
-    --runtimes=docker \
     trace exec
 CONTAINER    PID        PPID       COMM  RET ARGS
 cool_wright  1163565    1154511    ls    0   /bin/ls
 ```
+
+If you use Docker Desktop on Windows, please add `--pid=host` in the docker command.
