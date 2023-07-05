@@ -210,11 +210,6 @@ func buildCommandFromGadget(
 		Use:                gadgetDesc.Name(),
 		Short:              gadgetDesc.Description(),
 		SilenceUsage:       true, // do not print usage when there is an error
-		DisableFlagParsing: true,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			cmd.DisableFlagParsing = false
-			return cmd.ParseFlags(args)
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if c, ok := gadgetDesc.(gadgets.GadgetDescCustomParser); ok {
 				var err error
